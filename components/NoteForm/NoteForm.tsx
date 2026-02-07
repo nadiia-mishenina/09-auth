@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import css from "./NoteForm.module.css";
 import { useNoteStore, initialDraft } from "@/lib/store/noteStore";
 import type { NoteTag } from "@/types/note";
-import { createNoteAction } from "@/app/(private routes)/notes/action/create/actions";
+import { createNoteAction } from "@/app/(private routes)/notes/action/create/action";
 
 const TAGS: NoteTag[] = ["Todo", "Work", "Personal", "Meeting", "Shopping"];
 

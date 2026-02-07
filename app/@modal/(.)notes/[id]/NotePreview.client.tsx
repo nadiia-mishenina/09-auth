@@ -4,7 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import css from './NotePreview.module.css';
 import Modal from "@/components/Modal/Modal";
 import { useQuery } from "@tanstack/react-query";
-import { fetchNoteById } from "@/lib/api/api";
+import { fetchNoteById } from "@/lib/api/clientApi";
 
 
 

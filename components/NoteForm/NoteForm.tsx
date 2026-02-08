@@ -1,28 +1,52 @@
 "use client";
 
-import { useMemo, useTransition } from "react";
+import { useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import toast from "react-hot-toast";
 
 import css from "./NoteForm.module.css";
 import { useNoteStore, initialDraft } from "@/lib/store/noteStore";
 import type { NoteTag } from "@/types/note";
-import { createNoteAction } from "@/app/(private routes)/notes/action/create/action";
+import { createNote } from "@/lib/api/clientApi";
 
 const TAGS: NoteTag[] = ["Todo", "Work", "Personal", "Meeting", "Shopping"];
 
 export default function NoteForm() {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const queryClient = useQueryClient();
 
   const draft = useNoteStore((s) => s.draft);
   const setDraft = useNoteStore((s) => s.setDraft);
   const clearDraft = useNoteStore((s) => s.clearDraft);
 
-  // якщо persist ще не підвантажився (рідко), але надійно:
+  
   const values = useMemo(() => draft ?? initialDraft, [draft]);
 
+  const { mutateAsync, isPending } = useMutation({
+    mutationFn: createNote,
+    onSuccess: async () => {
+      
+      await queryClient.invalidateQueries({ queryKey: ["notes"] });
+      
+      await queryClient.invalidateQueries({
+        predicate: (q) => q.queryKey[0] === "notes",
+      });
+
+      clearDraft(); 
+      router.back(); 
+    },
+    onError: () => {
+      toast.error("Failed to create note");
+    },
+  });
+
   const handleChange: React.FormEventHandler<HTMLFormElement> = (e) => {
-    const target = e.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+    const target = e.target as
+      | HTMLInputElement
+      | HTMLTextAreaElement
+      | HTMLSelectElement;
+
     const name = target.name as "title" | "content" | "tag";
     const value = target.value;
 
@@ -31,20 +55,22 @@ export default function NoteForm() {
     if (name === "content") setDraft({ content: value });
   };
 
+  
   const action = async (formData: FormData) => {
     const title = String(formData.get("title") ?? "").trim();
     const content = String(formData.get("content") ?? "").trim();
     const tag = String(formData.get("tag") ?? "Todo") as NoteTag;
 
-    startTransition(async () => {
-      await createNoteAction({ title, content, tag });
-      clearDraft();        // ✅ тільки після успішного створення
-      router.back();       // ✅ повернутися назад
-    });
+    if (!title || !content) {
+      toast.error("Please fill all fields");
+      return;
+    }
+
+    await mutateAsync({ title, content, tag });
   };
 
-  const onCancel = () => {
-    router.back(); // ✅ draft НЕ чистимо
+  const onCancel: React.MouseEventHandler<HTMLButtonElement> = () => {
+    router.back(); 
   };
 
   return (
@@ -83,9 +109,14 @@ export default function NoteForm() {
 
       <div className={css.actions}>
         <button className={css.submit} type="submit" disabled={isPending}>
-          Create
+          {isPending ? "Creating..." : "Create"}
         </button>
-        <button className={css.cancel} type="button" onClick={onCancel} disabled={isPending}>
+        <button
+          className={css.cancel}
+          type="button"
+          onClick={onCancel}
+          disabled={isPending}
+        >
           Cancel
         </button>
       </div>
